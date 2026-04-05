@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import '../constants/constants.dart';
 import '../constants/links.dart';
 import '../models/api_error_model.dart';
+import '../views/login/signin_page.dart';
 
 class RegisterController extends GetxController{
   final box = GetStorage();
@@ -32,13 +33,15 @@ class RegisterController extends GetxController{
           url, headers: headers, body: data
       );
 
-      if(response.statusCode == 1){
+      if(response.statusCode == 201){
 
         var data = successModelFromJson(response.body);
 
         setLoading = false;
 
-        Get.back();
+        Get.to(() => SigninPage(),
+            transition: Transition.leftToRightWithFade,
+            duration: Duration(milliseconds: 700));
 
         Get.snackbar(
             "You successfully registered", data.message,

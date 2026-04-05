@@ -1,59 +1,44 @@
+import 'package:app/constants/constants.dart';
+import 'package:app/controllers/project_controller.dart';
+import 'package:app/views/login/signin_page.dart';
+import 'package:app/views/project/ai/ai_analyzer.dart';
+import 'package:app/views/project/comments/comment_sheet.dart';
+import 'package:app/views/project/image_gallery_view.dart';
+import 'package:app/views/project/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
-
 import '../../common/app_style.dart';
-import '../../constants/constants.dart';
+import 'package:lottie/lottie.dart';
 
 class ProjectDetailsPage extends StatefulWidget {
-  final Map<String, dynamic> projectData;
+  final String projectId;
 
-  const ProjectDetailsPage({super.key, required this.projectData});
+  const ProjectDetailsPage({
+    super.key,
+    required this.projectId,
+  });
 
   @override
   State<ProjectDetailsPage> createState() => _ProjectDetailsPageState();
 }
 
 class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
-  // Add controllers for video if video is present
-  VideoPlayerController? _videoPlayerController;
-  ChewieController? _chewieController;
+  final projectController = Get.find<ProjectController>();
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
-  }
-
-  void _initializeVideo() {
-    final videoUrl = widget.projectData['videoUrl'];
-    if (videoUrl != null && videoUrl.toString().isNotEmpty) {
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-      _videoPlayerController!.initialize().then((_) {
-        setState(() {
-          _chewieController = ChewieController(
-            videoPlayerController: _videoPlayerController!,
-            autoPlay: false,
-            looping: false,
-            aspectRatio: _videoPlayerController!.value.aspectRatio,
-          );
-        });
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _videoPlayerController?.dispose();
-    _chewieController?.dispose();
-    super.dispose();
+    projectController.fetchProjectById(widget.projectId);
   }
 
   Future<void> _launchUrl(String? urlString) async {
     if (urlString == null || urlString.isEmpty) return;
+
     final Uri url = Uri.parse(urlString);
+
     if (!await launchUrl(url)) {
       debugPrint('Could not launch $urlString');
     }
@@ -61,103 +46,259 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Mocking some extra data if not present in projectData map
-    final String githubUrl = widget.projectData['githubUrl'] ?? 'https://github.com';
-    final String demoUrl = widget.projectData['demoUrl'] ?? 'https://flutter.dev';
-    final String overview = widget.projectData['overview'] ?? 
-        "The Quantum Neural Interface is a revolutionary middleware that bridges the gap between traditional neural networks and emerging quantum computing architectures. By utilizing entangled qubit states for weight representation, this project achieves a 40% reduction in training latency for complex LLMs.";
-    final String leadEngineer = widget.projectData['leadEngineer'] ?? "Alex Rivera";
-    final String uiUxResearch = widget.projectData['uiUxResearch'] ?? "Sarah Chen";
-    final String teamSize = widget.projectData['teamSize'] ?? "4 Members";
-    final String duration = widget.projectData['duration'] ?? "6 Months";
+    final box = GetStorage();
 
-    // Media
-    final List<String> photos = widget.projectData['photos'] ?? [];
-    final String? pdfUrl = widget.projectData['pdfUrl'];
-    final String? pptUrl = widget.projectData['pptUrl'];
+    String? token = box.read('token');
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F111A), // darker background like the design
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
+    if (token == null) {
+      return SigninPage();
+    }
+
+    return Obx(() {
+      // Loading state
+      if (projectController.isFetchingProjectDetails) {
+        return Scaffold(
+          backgroundColor: Color(0xFF0F111A),
+          body: Center(
+        child: Lottie.asset(
+        "assets/anime/loading.json",
+          height: 100.h,
+          width: 100.w,
+          fit: BoxFit.cover,
+        ),
+      )
+        );
+      }
+
+      final project = projectController.selectedProject;
+
+      // No data state
+      if (project == null) {
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F111A),
+          body: Center(
+            child: Text(
+              "Project not found.",
+              style: appStyle(16, Colors.grey, FontWeight.normal),
+            ),
+          ),
+        );
+      }
+
+      final String status = project.status;
+      final String demoUrl = project.demoLink;
+      final String githubUrl = project.repoLink;
+      final String overview = project.description;
+      final List<String> memberNames = project.memberNames;
+      final List<String> memberIds = project.memberIds;
+      final List<String> techStack = project.technologies;
+      final String teamSize = "${project.memberSize} Members";
+      final String duration = project.duration;
+      final List<String> photos = project.images;
+      final String? pdfUrl = project.projectReportPdf;
+      final String? pptUrl = project.projectPptPdf;
+      final String? videoUrl = project.video;
+
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F111A),
+        body: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(photos),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16.w,
+                  vertical: 24.h,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+
+                          if (project.categories.isNotEmpty)
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12.w, vertical: 6.h),
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20.r),
+                              border: Border.all(
+                                  color: Colors.blueAccent.withOpacity(0.3)),
+                            ),
+                            child: Text(
+                              project.categories.join(' & ').toUpperCase(),
+                              style:
+                                  appStyle(12, Colors.blueAccent, FontWeight.bold),
+                            ),
+                          ),
+
+                          buildStatusBadge(project.status),
+                        ],
+                      ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      project.title,
+                      style: appStyle(24, Colors.white, FontWeight.bold),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      project.tagline,
+                      style: appStyle(
+                          14, Colors.white.withOpacity(0.8), FontWeight.normal),
+                    ),
+                    SizedBox(height: 24.h),
+                    _buildActionButtons(githubUrl, demoUrl),
+                    SizedBox(height: 24.h),
+                    _buildStatsCards(teamSize, duration),
+                    SizedBox(height: 32.h),
+                    _buildProjectOverview(overview, memberNames, techStack, memberIds),
+                    SizedBox(height: 32.h),
+                    _buildMediaSection(photos, pdfUrl, pptUrl, videoUrl),
+                    SizedBox(height: 40.h),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            
+            /// 🔥 LIKE & COMMENT BOX (NEW)
+            Container(
+              margin: EdgeInsets.only(bottom: 10.h),
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 10.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF151722),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.2),
+                    blurRadius: 1,
+                    spreadRadius: 2
+                  )
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "PROJECT SHOWCASE",
-                    style: appStyle(12, Colors.blueAccent, FontWeight.bold),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    widget.projectData['title'] ?? "Project Title",
-                    style: appStyle(24, Colors.white, FontWeight.bold),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    widget.projectData['subtitle'] ?? "Project subtitle representing tagline.",
-                    style: appStyle(14, Colors.white.withOpacity(0.8), FontWeight.normal),
-                  ),
-                  
-                  SizedBox(height: 24.h),
-                  _buildActionButtons(githubUrl, demoUrl),
-                  
-                  SizedBox(height: 24.h),
-                  _buildStatsCards(teamSize, duration),
-                  
-                  SizedBox(height: 32.h),
-                  _buildProjectOverview(overview, leadEngineer, uiUxResearch),
+                  /// 👍 LIKE
+                  IconButton(
+                      icon: Icon(
+                        projectController.isLiked.value
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: Colors.yellow,
+                      ),
+                      onPressed: () =>
+                          projectController.toggleLike(project.id),
+                    ),
+                    Text("${projectController.likeCount.value} Stars",
+                    style: TextStyle(color: Colors.white, fontSize: 10.sp),
+                    ),
 
-                  SizedBox(height: 32.h),
-                  _buildMediaSection(photos, pdfUrl, pptUrl),
-                  
-                  SizedBox(height: 40.h),
+                  SizedBox(height: 12.h),
+
+                  /// 💬 COMMENT
+                  GestureDetector(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => CommentSheet(projectId: project.id),
+                      );
+                    },
+                    child: Column(
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                          color: Colors.white, size: 22.sp),
+                        SizedBox(height: 4.h),
+                        Text("${projectController.comments.length} Comments",
+                    style: TextStyle(color: Colors.white, fontSize: 10.sp),
+                    ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          )
-        ],
-      ),
-    );
+
+            /// 🤖 EXISTING AI BUTTON
+            GestureDetector(
+              onTap: () {
+                Get.to(() => AIAnalyzerPage(
+                      projectId: project.id,
+                    ));
+              },
+              child: Container(
+                height: 60.h,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      "AI",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
-  Widget _buildSliverAppBar() {
+  Widget _buildSliverAppBar(List<String> photos) {
     return SliverAppBar(
       expandedHeight: 250.h,
       pinned: true,
       backgroundColor: const Color(0xFF0F111A),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () => Get.back(),
       ),
       title: Text(
-        "PROJEXHUB V2",
-        style: appStyle(16, Colors.white, FontWeight.bold).copyWith(letterSpacing: 1.5),
+        "PROJECT DETAILS",
+        style: appStyle(16, Colors.white, FontWeight.bold)
+            .copyWith(letterSpacing: 1.5),
       ),
       centerTitle: true,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
-        ),
-      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Background image placeholder with a gradient look
             Container(
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/images/default.png'), // fallback image
+              decoration: BoxDecoration(
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/screen.png'),
                   fit: BoxFit.cover,
                 ),
+                borderRadius: BorderRadius.circular(16.r),
               ),
             ),
-            // Gradient Overlay specific to design
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -166,10 +307,10 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
                   colors: [
                     const Color(0xFF0F111A).withOpacity(0.1),
                     const Color(0xFF0F111A).withOpacity(0.6),
-                    const Color(0xFF0F111A), // match background at bottom
+                    const Color(0xFF0F111A),
                   ],
-                  stops: const [0.0, 0.5, 1.0],
                 ),
+                borderRadius: BorderRadius.circular(12.r),
               ),
             ),
           ],
@@ -179,6 +320,10 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
   }
 
   Widget _buildActionButtons(String githubUrl, String demoUrl) {
+    bool hasDemo = demoUrl.trim().isNotEmpty &&
+        demoUrl.trim().toLowerCase() != 'n/a' &&
+        demoUrl.trim().toLowerCase() != 'null';
+
     return Row(
       children: [
         Expanded(
@@ -187,7 +332,6 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
             child: Container(
               padding: EdgeInsets.symmetric(vertical: 14.h),
               decoration: BoxDecoration(
-                color: Colors.transparent,
                 borderRadius: BorderRadius.circular(12.r),
                 border: Border.all(color: Colors.white.withOpacity(0.1)),
               ),
@@ -196,33 +340,36 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
                 children: [
                   Icon(Icons.code, color: Colors.white, size: 18.sp),
                   SizedBox(width: 8.w),
-                  Text("View GitHub", style: appStyle(14, Colors.white, FontWeight.bold)),
+                  Text("View GitHub",
+                      style: appStyle(14, Colors.white, FontWeight.bold)),
                 ],
               ),
             ),
           ),
         ),
-        SizedBox(width: 16.w),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => _launchUrl(demoUrl),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 14.h),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C64F2), // solid blue like design
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.rocket_launch, color: Colors.white, size: 18.sp),
-                  SizedBox(width: 8.w),
-                  Text("Live Demo", style: appStyle(14, Colors.white, FontWeight.bold)),
-                ],
+        if (hasDemo) SizedBox(width: 16.w),
+        if (hasDemo)
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _launchUrl(demoUrl),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C64F2),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.rocket_launch, color: Colors.white, size: 18.sp),
+                    SizedBox(width: 8.w),
+                    Text("Live Demo",
+                        style: appStyle(14, Colors.white, FontWeight.bold)),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -231,252 +378,296 @@ class _ProjectDetailsPageState extends State<ProjectDetailsPage> {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFF151722), // slightly lighter than background
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1F36), // darker bluish
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Icon(Icons.people, color: Colors.blueAccent, size: 20.sp),
-                ),
-                SizedBox(width: 12.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("TEAM SIZE", style: appStyle(10, Colors.white.withOpacity(0.5), FontWeight.bold)),
-                    SizedBox(height: 4.h),
-                    Text(teamSize, style: appStyle(14, Colors.white, FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          child: _statCard(Icons.people, "TEAM SIZE", teamSize),
         ),
         SizedBox(width: 16.w),
         Expanded(
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFF151722),
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1F36),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Icon(Icons.access_time, color: Colors.blueAccent, size: 20.sp),
-                ),
-                SizedBox(width: 12.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("DURATION", style: appStyle(10, Colors.white.withOpacity(0.5), FontWeight.bold)),
-                    SizedBox(height: 4.h),
-                    Text(duration, style: appStyle(14, Colors.white, FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          child: _statCard(Icons.access_time, "DURATION", '$duration Months'),
         ),
       ],
     );
   }
 
-  Widget _buildProjectOverview(String overview, String leadEngineer, String uiUxResearch) {
+  Widget _statCard(IconData icon, String title, String value) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151722),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1F36),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(icon, color: Colors.blueAccent, size: 20.sp),
+          ),
+          SizedBox(width: 12.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: appStyle(
+                      10, Colors.white.withOpacity(0.5), FontWeight.bold)),
+              SizedBox(height: 4.h),
+              Text(value, style: appStyle(14, Colors.white, FontWeight.bold)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProjectOverview(String overview, List<String> memberNames, List<String> techStack, List<String> memberIds) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(Icons.description, color: Colors.blueAccent, size: 20.sp),
-            SizedBox(width: 8.w),
-            Text("Project Overview", style: appStyle(18, Colors.white, FontWeight.bold)),
-          ],
-        ),
+        Text("Project Overview",
+            style: appStyle(18, Colors.white, FontWeight.bold)),
         SizedBox(height: 16.h),
         Container(
           padding: EdgeInsets.all(20.w),
           decoration: BoxDecoration(
             color: const Color(0xFF151722),
             borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
-          child: Column(
+          child: Text(
+            overview,
+            style:
+                appStyle(14, Colors.white.withOpacity(0.7), FontWeight.normal)
+                    .copyWith(height: 1.6),
+          ),
+        ),
+
+        SizedBox(height: 16.h),
+        if (memberNames.isNotEmpty)
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                overview,
-                style: appStyle(14, Colors.white.withOpacity(0.7), FontWeight.normal).copyWith(
-                  height: 1.6,
-                ),
+              Text("Tech Stack",
+                  style: appStyle(16, Colors.white, FontWeight.bold)),
+              SizedBox(height: 8.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: techStack
+                    .map((name) => Chip(
+                          label: Text(name,
+                              style:
+                                  appStyle(12, Colors.white, FontWeight.w500)),
+                          backgroundColor: const Color(0xFF1A1F36),
+                          side:
+                              BorderSide(color: Colors.white.withOpacity(0.1)),
+                        ))
+                    .toList(),
               ),
-              SizedBox(height: 24.h),
-              Divider(color: Colors.white.withOpacity(0.1)),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("LEAD ENGINEER", style: appStyle(10, Colors.white.withOpacity(0.5), FontWeight.bold)),
-                        SizedBox(height: 4.h),
-                        Text(leadEngineer, style: appStyle(14, Colors.white, FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("UI/UX RESEARCH", style: appStyle(10, Colors.white.withOpacity(0.5), FontWeight.bold)),
-                        SizedBox(height: 4.h),
-                        Text(uiUxResearch, style: appStyle(14, Colors.white, FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ],
-              )
             ],
           ),
-        )
+
+
+        SizedBox(height: 16.h),
+        if (memberNames.isNotEmpty)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Team Members",
+                  style: appStyle(16, Colors.white, FontWeight.bold)),
+              SizedBox(height: 8.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: memberNames
+                    .map((name) => Chip(
+                          label: Text(name,
+                              style:
+                                  appStyle(12, Colors.white, FontWeight.w500)),
+                          backgroundColor: const Color(0xFF1A1F36),
+                          side:
+                              BorderSide(color: Colors.white.withOpacity(0.1)),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 16.h),
+        if (memberIds.isNotEmpty)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Team Members IDs",
+                  style: appStyle(16, Colors.white, FontWeight.bold)),
+              SizedBox(height: 8.h),
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
+                children: memberIds
+                    .map((name) => Chip(
+                          label: Text(name,
+                              style:
+                                  appStyle(12, Colors.white, FontWeight.w500)),
+                          backgroundColor: const Color(0xFF1A1F36),
+                          side:
+                              BorderSide(color: Colors.white.withOpacity(0.1)),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+
+          
       ],
     );
   }
 
-  Widget _buildMediaSection(List<String> photos, String? pdfUrl, String? pptUrl) {
+  /// ✅ MEDIA SECTION
+  Widget _buildMediaSection(
+      List<String> photos, String? pdfUrl, String? pptUrl, String? videoUrl) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(Icons.perm_media, color: Colors.blueAccent, size: 20.sp),
-            SizedBox(width: 8.w),
-            Text("Project Media", style: appStyle(18, Colors.white, FontWeight.bold)),
-          ],
-        ),
+        Text("Project Media",
+            style: appStyle(18, Colors.white, FontWeight.bold)),
         SizedBox(height: 16.h),
-        
-        // Photos
-        if (photos.isNotEmpty) ...[
-          Text("Screenshots & Photos", style: appStyle(14, Colors.white, FontWeight.w600)),
-          SizedBox(height: 12.h),
+
+        /// IMAGES
+        if (photos.isNotEmpty)
           SizedBox(
             height: 120.h,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: photos.length,
               itemBuilder: (context, index) {
-                return Container(
-                  width: 200.w,
-                  margin: EdgeInsets.only(right: 12.w),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    image: DecorationImage(
-                      image: NetworkImage(photos[index]),
-                      fit: BoxFit.cover,
+                return GestureDetector(
+                  onTap: () {
+                    Get.to(() => ImageGalleryView(
+                          images: photos,
+                          initialIndex: index,
+                        ));
+                  },
+                  child: Container(
+                    width: 200.w,
+                    margin: EdgeInsets.only(right: 12.w),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12.r),
+                      image: DecorationImage(
+                        image: NetworkImage(photos[index]),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 );
               },
             ),
           ),
-          SizedBox(height: 24.h),
-        ],
 
-        // Video
-        if (_videoPlayerController != null && _chewieController != null) ...[
-          Text("Demo Video", style: appStyle(14, Colors.white, FontWeight.w600)),
-          SizedBox(height: 12.h),
-          Container(
-            height: 200.h,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12.r),
-              child: Chewie(
-                controller: _chewieController!,
-              ),
-            ),
-          ),
-          SizedBox(height: 24.h),
-        ],
+        SizedBox(height: 20.h),
 
-        // Documents (PDF, PPT)
-        if (pdfUrl != null || pptUrl != null) ...[
-          Text("Documents", style: appStyle(14, Colors.white, FontWeight.w600)),
-          SizedBox(height: 12.h),
-          Row(
+        /// VIDEO
+        if (videoUrl != null && videoUrl.isNotEmpty)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (pdfUrl != null)
-                Expanded(
-                  child: _buildDocCard("Project Report", "PDF", Icons.picture_as_pdf, Colors.redAccent, () => _launchUrl(pdfUrl)),
-                ),
-              if (pdfUrl != null && pptUrl != null) SizedBox(width: 16.w),
-              if (pptUrl != null)
-                Expanded(
-                  child: _buildDocCard("Presentation", "PPT", Icons.slideshow, Colors.orangeAccent, () => _launchUrl(pptUrl)),
-                ),
-            ],
-          )
-        ],
-      ],
-    );
-  }
+              Text("Project Demo",
+                  style: appStyle(16, Colors.white, FontWeight.bold)),
+              SizedBox(height: 10.h),
+              GestureDetector(
+                onTap: () => _launchUrl(videoUrl),
+                child: Container(
+                  width: double.infinity,
+                  height: 180.h,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12.r),
+                    color: const Color(0xFF151722),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      /// Dark overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12.r),
+                          color: Colors.black.withOpacity(0.5),
+                        ),
+                      ),
 
-  Widget _buildDocCard(String title, String type, IconData icon, Color iconColor, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151722),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8.w),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8.r),
+                      /// Play Icon
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.play_circle_fill,
+                            color: Colors.white,
+                            size: 50.sp,
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            "Watch Demo",
+                            style: appStyle(14, Colors.white, FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Icon(icon, color: iconColor, size: 24.sp),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ],
+          ),
+
+        SizedBox(height: 20.h),
+
+        /// PDF
+        if (pdfUrl != null && pdfUrl.isNotEmpty)
+          GestureDetector(
+            onTap: () => _launchUrl(pdfUrl),
+            child: Container(
+              padding: EdgeInsets.all(14.w),
+              margin: EdgeInsets.only(bottom: 12.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF151722),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Row(
                 children: [
-                  Text(title, style: appStyle(14, Colors.white, FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  SizedBox(height: 4.h),
-                  Text(type, style: appStyle(10, Colors.white.withOpacity(0.5), FontWeight.bold)),
+                  Icon(Icons.picture_as_pdf,
+                      color: Colors.redAccent, size: 22.sp),
+                  SizedBox(width: 12.w),
+                  Text("View Project Report",
+                      style: appStyle(14, Colors.white, FontWeight.bold)),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+
+        /// PPT
+        if (pptUrl != null && pptUrl.isNotEmpty)
+          GestureDetector(
+            onTap: () => _launchUrl(pptUrl),
+            child: Container(
+              padding: EdgeInsets.all(14.w),
+              decoration: BoxDecoration(
+                color: const Color(0xFF151722),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.slideshow,
+                      color: Colors.orangeAccent, size: 22.sp),
+                  SizedBox(width: 12.w),
+                  Text("View Project PPT",
+                      style: appStyle(14, Colors.white, FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -6,28 +6,76 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:get/get.dart';
 import '../constants/constants.dart';
+import '../controllers/login_controller.dart';
+import '../controllers/project_controller.dart';
 import '../controllers/tab_index_controller.dart';
 import 'home/home_page.dart';
 import 'uploadProject/project_upload_page.dart';
 
-class MainScreen extends StatelessWidget {
-  MainScreen({super.key});
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
   final List<Widget> pageList = [
-    HomePage(),
+    const HomePage(),
     SearchProjectsPage(),
-    ProjectStatusPage(),
-    ProfilePage(),
+    const ProjectStatusPage(),
+    const ProfilePage(),
   ];
+
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Register all controllers once at the top level
+    Get.put(LoginController(), permanent: true);
+    final projectController = Get.put(ProjectController(), permanent: true);
+    final tabController = Get.put(TabIndexController(), permanent: true);
+
+    _pageController = PageController(initialPage: tabController.tabIndex);
+
+    // ✅ Fetch initial data on cold start so pages aren't blank
+    projectController.fetchProjects();
+    projectController.fetchTopProjectsByCategory();
+    projectController.fetchMyProjects();
+    projectController.fetchApprovedUserProjects();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTapped(int index, TabIndexController controller) {
+    controller.setTabIndex = index;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(TabIndexController());
+    final controller = Get.find<TabIndexController>();
 
     return Obx(() => Scaffold(
       backgroundColor: Colors.transparent,
       // ✅ BODY
-      body: pageList[controller.tabIndex],
+      body: PageView(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          controller.setTabIndex = index;
+        },
+        children: pageList,
+      ),
 
       // ✅ CENTER FLOATING BUTTON
       floatingActionButton: ClipOval(
@@ -67,9 +115,7 @@ class MainScreen extends StatelessWidget {
                 color: controller.tabIndex == 0
                     ? primaryPurple
                     : textGrey,
-                onPressed: () {
-                  controller.setTabIndex = 0;
-                },
+                onPressed: () => _onTabTapped(0, controller),
               ),
 
               // 🔹 SEARCH
@@ -78,9 +124,7 @@ class MainScreen extends StatelessWidget {
                 color: controller.tabIndex == 1
                     ? primaryPurple
                     : textGrey,
-                onPressed: () {
-                  controller.setTabIndex = 1;
-                },
+                onPressed: () => _onTabTapped(1, controller),
               ),
 
               const SizedBox(width: 40), // space for FAB
@@ -91,9 +135,7 @@ class MainScreen extends StatelessWidget {
                 color: controller.tabIndex == 2
                     ? primaryPurple
                     : textGrey,
-                onPressed: () {
-                  controller.setTabIndex = 2;
-                },
+                onPressed: () => _onTabTapped(2, controller),
               ),
 
               // 🔹 PROFILE
@@ -104,9 +146,7 @@ class MainScreen extends StatelessWidget {
                 color: controller.tabIndex == 3
                     ? primaryPurple
                     : textGrey,
-                onPressed: () {
-                  controller.setTabIndex = 3;
-                },
+                onPressed: () => _onTabTapped(3, controller),
               ),
             ],
           ),

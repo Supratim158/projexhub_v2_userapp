@@ -48,7 +48,30 @@ class _SigninPageState extends State<SigninPage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: kDark,
-        title: ReusableText(text: "Projexhub", style: appStyle(20, textWhite, FontWeight.normal),),
+        leading: GestureDetector(
+          onTap: (){
+            Get.back();
+          },
+            child: Icon(Icons.arrow_back_ios_new,color: Colors.white,)),
+        title: ReusableText(
+        text: "ProjexHub",
+        style: appStyle(
+          24.sp,
+          Colors.white,
+          FontWeight.bold,
+        ).copyWith(
+          shadows: [
+            Shadow(
+              color: Colors.blueAccent.withOpacity(0.9),
+              blurRadius: 12,
+            ),
+            Shadow(
+              color: Colors.blueAccent.withOpacity(0.6),
+              blurRadius: 25,
+            ),
+          ],
+        ),
+      ),
         centerTitle: true,
       ),
       body: BgController(

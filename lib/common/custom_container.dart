@@ -4,14 +4,33 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../constants/constants.dart';
 
 class CustomContainer extends StatelessWidget {
-  CustomContainer({super.key, required this.containerContent, this.color, this.gradient});
-
   final Widget containerContent;
   final Color? color;
   final Gradient? gradient;
+  final Future<void> Function()? onRefresh;
+
+  CustomContainer({
+    super.key, 
+    required this.containerContent, 
+    this.color, 
+    this.gradient,
+    this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
+    Widget content = SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: containerContent,
+    );
+
+    if (onRefresh != null) {
+      content = RefreshIndicator(
+        onRefresh: onRefresh!,
+        child: content,
+      );
+    }
+
     return SizedBox(
       height: MediaQuery.of(context).size.height*0.9,
       child: ClipRRect(
@@ -35,9 +54,7 @@ class CustomContainer extends StatelessWidget {
                 ))
               : null,
           ),
-          child: SingleChildScrollView(
-            child: containerContent,
-          ),
+          child: content,
         ),
       ),
     );

@@ -1,42 +1,46 @@
+import 'package:app/models/project_response.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+import 'package:intl/intl.dart';
 
 import '../../../common/app_style.dart';
 
-enum SubmissionStatus { pending, published, actionRequired, archived }
-
 class SubmissionCard extends StatelessWidget {
-  final Map<String, dynamic> project;
+  final ProjectResponse project;
+  final VoidCallback onTap;
 
-  const SubmissionCard({super.key, required this.project});
+  const SubmissionCard({super.key, required this.project, required this.onTap,});
 
   @override
   Widget build(BuildContext context) {
-    final status = project['status'] as SubmissionStatus;
+
+    final status = project.status.toLowerCase();
     
     // Status visual configurations
     Color statusColor;
     String statusText;
     
     switch (status) {
-      case SubmissionStatus.pending:
+      case "pending":
         statusColor = Colors.amber;
         statusText = "PENDING REVIEW";
         break;
-      case SubmissionStatus.published:
+      case "approved":
         statusColor = const Color(0xFF00E676); // Neon green
-        statusText = "PUBLISHED";
+        statusText = "ACCEPTED";
         break;
-      case SubmissionStatus.actionRequired:
+      case "rejected":
         statusColor = const Color(0xFFFF3B30); // Bright Red
-        statusText = "ACTION REQUIRED";
+        statusText = "REJECTED";
         break;
-      case SubmissionStatus.archived:
-        statusColor = Colors.grey.shade500;
-        statusText = "ARCHIVED";
-        break;
+      default:
+        statusColor = Colors.grey;
+        statusText = status.toUpperCase();
     }
+
+    // Get the first image from the images list
+    final String? imageUrl = project.images.isNotEmpty ? project.images[0] : null;
 
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -51,24 +55,34 @@ class SubmissionCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image Container (Mock)
+              // Image Container
               Container(
                 width: 70.w,
                 height: 70.w,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12.r),
                   color: Colors.black26,
-                  image: DecorationImage(
-                    image: AssetImage(project["image"] ?? "assets/images/profile.jpg"),
-                    fit: BoxFit.cover,
-                    // Grayscale filter for archived
-                    colorFilter: status == SubmissionStatus.archived
-                        ? const ColorFilter.mode(Colors.grey, BlendMode.saturation)
-                        : ColorFilter.mode(Colors.black.withOpacity(0.2), BlendMode.darken),
-                  ),
-                  boxShadow: status == SubmissionStatus.actionRequired
+                  boxShadow: status == "rejected"
                       ? [BoxShadow(color: statusColor.withOpacity(0.3), blurRadius: 15, spreadRadius: 1)]
                       : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12.r),
+                  child: imageUrl != null
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey.shade600,
+                            size: 30.sp,
+                          ),
+                        )
+                      : Icon(
+                          Icons.image,
+                          color: Colors.grey.shade600,
+                          size: 30.sp,
+                        ),
                 ),
               ),
               SizedBox(width: 16.w),
@@ -79,23 +93,35 @@ class SubmissionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Status Badge
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(color: statusColor.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: appStyle(10, statusColor, FontWeight.w800).copyWith(letterSpacing: 0.5),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(color: statusColor.withOpacity(0.3)),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: appStyle(10, statusColor, FontWeight.w800).copyWith(letterSpacing: 0.5),
+                          ),
+                        ),
+                        _buildButton(
+                          text: "Details",
+                          bgColor: const Color(0xFF0F52FF), // Vivid blue
+                          textColor: Colors.white,
+                          icon: Icons.chevron_right,
+                          onTap: onTap,
+                        ),
+                      ],
                     ),
                     SizedBox(height: 8.h),
                     
                     // Title
                     Text(
-                      project['title'],
+                      project.title,
                       style: appStyle(16, Colors.white, FontWeight.bold),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -104,7 +130,7 @@ class SubmissionCard extends StatelessWidget {
                     
                     // Submitted Date
                     Text(
-                      "Submitted on ${project['date']}",
+                      "Submitted on ${DateFormat('MMM dd, yyyy').format(project.createdAt)}",
                       style: appStyle(12, Colors.grey.shade400, FontWeight.w400),
                     ),
                   ],
@@ -112,78 +138,24 @@ class SubmissionCard extends StatelessWidget {
               ),
             ],
           ),
-          
-          SizedBox(height: 16.h),
-          
-          // Bottom Actions Row based on Status
-          _buildBottomActionRow(status, project),
+
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.end,
+          //   children: [
+          //     _buildButton(
+          //       text: "Details",
+          //       bgColor: const Color(0xFF0F52FF), // Vivid blue
+          //       textColor: Colors.white,
+          //       icon: Icons.chevron_right,
+          //       onTap: onTap,
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomActionRow(SubmissionStatus status, Map<String, dynamic> project) {
-    switch (status) {
-      case SubmissionStatus.pending:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildAvatarGroup(),
-            _buildButton(
-              text: "Track Details",
-              bgColor: const Color(0xFF0F52FF), // Vivid blue
-              textColor: Colors.white,
-              icon: Icons.chevron_right,
-            ),
-          ],
-        );
-      case SubmissionStatus.published:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(AntDesign.eyeo, color: const Color(0xFF00E676), size: 16.sp),
-                SizedBox(width: 6.w),
-                Text(
-                  project['views'] ?? "0 views",
-                  style: appStyle(12, const Color(0xFF00E676), FontWeight.w500),
-                )
-              ],
-            ),
-            _buildButton(
-              text: "View Project",
-              bgColor: Colors.transparent,
-              textColor: Colors.white,
-              borderColor: Colors.grey.shade600,
-            ),
-          ],
-        );
-      case SubmissionStatus.actionRequired:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.info_outline, color: const Color(0xFFFF3B30), size: 14.sp),
-                SizedBox(width: 6.w),
-                Text(
-                  project['errorMessage'] ?? "Action needed",
-                  style: appStyle(12, const Color(0xFFFF3B30), FontWeight.normal).copyWith(fontStyle: FontStyle.italic),
-                )
-              ],
-            ),
-            _buildButton(
-              text: "Resolve Now",
-              bgColor: const Color(0xFFFF3B30),
-              textColor: Colors.white,
-            ),
-          ],
-        );
-      case SubmissionStatus.archived:
-        return const SizedBox.shrink(); // No bottom action for archived
-    }
-  }
 
   Widget _buildButton({
     required String text,
@@ -191,60 +163,30 @@ class SubmissionCard extends StatelessWidget {
     required Color textColor,
     Color? borderColor,
     IconData? icon,
+    required VoidCallback onTap, // 👈 ADD THIS
   }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8.r),
-        border: borderColor != null ? Border.all(color: borderColor) : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            text,
-            style: appStyle(14, textColor, FontWeight.bold),
-          ),
-          if (icon != null) ...[
-            SizedBox(width: 4.w),
-            Icon(icon, color: textColor, size: 18.sp),
-          ]
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvatarGroup() {
-    return SizedBox(
-      width: 50.w,
-      height: 24.w,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            child: CircleAvatar(
-              radius: 12.r,
-              backgroundColor: Colors.grey.shade700,
-              child: Text("JD", style: appStyle(10, Colors.white, FontWeight.bold)),
+    return GestureDetector(
+      onTap: onTap, // 👈 HANDLE TAP
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8.r),
+          border: borderColor != null ? Border.all(color: borderColor) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              style: appStyle(14, textColor, FontWeight.bold),
             ),
-          ),
-          Positioned(
-            left: 16.w,
-            child: Container(
-              padding: EdgeInsets.all(2.w),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF1E1E2E), // Background mask
-              ),
-              child: CircleAvatar(
-                radius: 10.r,
-                backgroundColor: const Color(0xFF0F52FF),
-                child: Text("AI", style: appStyle(8, Colors.white, FontWeight.bold)),
-              ),
-            ),
-          ),
-        ],
+            if (icon != null) ...[
+              SizedBox(width: 4.w),
+              Icon(icon, color: textColor, size: 18.sp),
+            ]
+          ],
+        ),
       ),
     );
   }

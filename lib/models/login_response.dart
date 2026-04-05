@@ -19,6 +19,8 @@ class LoginResponse {
   String userType;
   String profile;
   String userToken;
+  String role;
+  String bio;
 
   LoginResponse({
     required this.id,
@@ -31,19 +33,23 @@ class LoginResponse {
     required this.userType,
     required this.profile,
     required this.userToken,
+    required this.role,
+    required this.bio,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
-    id: json["_id"],
-    userName: json["userName"],
-    email: json["email"],
-    fcm: json["fcm"],
-    verification: json["verification"],
-    phone: json["phone"],
-    phoneVerification: json["phoneVerification"],
-    userType: json["userType"],
-    profile: json["profile"],
-    userToken: json["userToken"],
+    id: json["_id"] ?? "",
+    userName: json["userName"] ?? json["username"] ?? "User",
+    email: json["email"] ?? "",
+    fcm: json["fcm"] ?? "",
+    verification: json["verification"] ?? false,
+    phone: json["phone"] ?? "",
+    phoneVerification: json["phoneVerification"] ?? false,
+    userType: json["userType"] ?? "",
+    profile: json["profile"] ?? "",
+    userToken: json["userToken"] ?? "",
+    role: json["role"] ?? "",
+    bio: json["bio"] ?? "",
   );
 
   Map<String, dynamic> toJson() => {
@@ -57,5 +63,7 @@ class LoginResponse {
     "userType": userType,
     "profile": profile,
     "userToken": userToken,
+    "role": role,
+    "bio": bio
   };
 }

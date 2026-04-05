@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 
 class PasswordController extends GetxController {
-  RxBool _password = false.obs;
+  RxBool _password = true.obs;
 
   bool get password => _password.value;
 

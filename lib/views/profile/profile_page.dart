@@ -1,5 +1,7 @@
 import 'package:app/controllers/login_controller.dart';
+
 import 'package:app/models/login_response.dart';
+import 'package:app/views/login/verification_page.dart';
 import 'package:app/views/login/widgets/animated_button.dart';
 import 'package:app/views/profile/login_redirect.dart';
 import 'package:app/views/profile/widgets/achievement_badges.dart';
@@ -20,7 +22,7 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(LoginController());
+    final controller = Get.find<LoginController>();
 
     LoginResponse? user;
 
@@ -31,12 +33,16 @@ class ProfilePage extends StatelessWidget {
     if(token != null){
       user = controller.getUserInfo();
     }
-    
+
     if(token == null){
-      return LoginRedirect();
+      return const LoginRedirect();
+    }
+
+    if(user != null && user.verification == false){
+      return const VerificationPage();
     }
     return Scaffold(
-      backgroundColor: bottomNavBackground,
+      backgroundColor: const Color(0xFF13131A),
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(60.h),
         child: const ProfileAppbar(),
@@ -50,24 +56,25 @@ class ProfilePage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 20.h),
-                
-                // 1. User Avatar, Name, Title, Location
-                ProfileHeader(user: user,),
-                
+
+                GetBuilder<LoginController>(
+                  builder: (loginCtrl) {
+                    final currentUser = loginCtrl.getUserInfo();
+                    return ProfileHeader(user: currentUser);
+                  },
+                ),
+
                 SizedBox(height: 24.h),
-                
+
                 // 2. Stats Row (Projects, Followers, Stars)
                 const ProfileStats(),
 
                 SizedBox(height: 24.h),
-                
+
                 // 3. Action Buttons (Edit Profile, Share)
                 const ProfileActionButtons(),
 
-                SizedBox(height: 32.h),
-
-                // 4. Achievement Badges 
-                const AchievementBadges(),
+                
 
                 SizedBox(height: 32.h),
 
@@ -82,7 +89,8 @@ class ProfilePage extends StatelessWidget {
                     onTap: (){
                       controller.logout();
                     }
-                )
+                ),
+                SizedBox(height: 50.h),
               ],
             ),
           ),

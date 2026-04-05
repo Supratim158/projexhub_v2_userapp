@@ -5,11 +5,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 
 import 'constants/constants.dart';
+import 'package:get_storage/get_storage.dart';
 
-// Widget defaultHomePage = MainScreen();
-Widget defaultHomePage = LandingPage();
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await GetStorage.init();
 
-void main() {
   runApp(const MyApp());
 }
 
@@ -18,6 +19,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Determine initial page at build time, not at global scope
+    final box = GetStorage();
+    String? token = box.read('token');
+    final Widget homePage = (token != null) ? const MainScreen() : LandingPage();
 
     return ScreenUtilInit(
       designSize: const Size(375, 825),
@@ -29,9 +34,9 @@ class MyApp extends StatelessWidget {
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                kDark,
-                kDark,
-                kDark,
+                const Color(0xFF13131A),
+                const Color(0xFF13131A),
+                const Color(0xFF13131A),
               ],
               begin: Alignment.bottomLeft,
               end: Alignment.topRight,
@@ -39,7 +44,7 @@ class MyApp extends StatelessWidget {
           ),
           child: GetMaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'Food Delivery',
+            title: 'Projex Hub',
             theme: ThemeData(
               scaffoldBackgroundColor: Colors.transparent,
               iconTheme: const IconThemeData(color: kDark),
@@ -50,7 +55,7 @@ class MyApp extends StatelessWidget {
         );
       },
 
-      child: defaultHomePage,
+      child: homePage,
     );
   }
 }

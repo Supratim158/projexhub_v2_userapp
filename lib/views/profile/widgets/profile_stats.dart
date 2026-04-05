@@ -1,5 +1,7 @@
+import 'package:app/controllers/project_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
 
 import '../../../common/app_style.dart';
 
@@ -8,14 +10,17 @@ class ProfileStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final projectController = Get.find<ProjectController>();
+    
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(child: _buildStatCard("24", "PROJECTS")),
-        SizedBox(width: 12.w),
-        Expanded(child: _buildStatCard("1.2k", "FOLLOWERS")),
-        SizedBox(width: 12.w),
-        Expanded(child: _buildStatCard("450", "STARS")),
+        Expanded(
+          child: Obx(() => _buildStatCard(
+            projectController.approvedUserProjects.length.toString(), 
+            "PROJECTS POSTED"
+          )),
+        ),
       ],
     );
   }
@@ -38,7 +43,8 @@ class ProfileStats extends StatelessWidget {
           SizedBox(height: 4.h),
           Text(
             label,
-            style: appStyle(10, Colors.grey.shade500, FontWeight.bold).copyWith(letterSpacing: 1.2),
+            style: appStyle(10, Colors.grey.shade500, FontWeight.bold)
+                .copyWith(letterSpacing: 1.2),
           ),
         ],
       ),

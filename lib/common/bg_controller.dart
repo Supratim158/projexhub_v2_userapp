@@ -20,7 +20,7 @@ class BgController extends StatelessWidget {
         color: color,
         image: const DecorationImage(
             image: AssetImage("assets/images/custom_bg.png"),
-          fit: BoxFit.cover,
+          fit: BoxFit.fill,
           opacity: .3
         )
       ),

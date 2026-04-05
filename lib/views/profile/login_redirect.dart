@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lottie/lottie.dart';
-
+import 'package:get/get.dart';
+import 'package:app/views/login/signin_page.dart';
 import '../../common/custom_container.dart';
 import '../../constants/constants.dart';
 import '../login/widgets/animated_button.dart';
@@ -24,20 +25,27 @@ class LoginRedirect extends StatelessWidget {
               children: [
                 SizedBox(height: 20.h),
 
-                SizedBox(
-                  height: 220,
-                  child: Lottie.asset(
-                    "assets/anime/robo.json",
-                    repeat: true,
-                    animate: true,
+                Center(
+                  child: SizedBox(
+                    height: 220,
+                    child: Lottie.asset(
+                      "assets/anime/robo.json",
+                      repeat: true,
+                      animate: true,
+                    ),
                   ),
                 ),
+                SizedBox(height: 30.h,),
 
 
 
                 AnimatedButton(
                     text: "LogOut",
                     onTap: (){
+                      Get.offAll(() => SigninPage(),
+                          transition: Transition.fade,
+                          duration: const Duration(milliseconds: 900)
+                      );
                     }
                 )
               ],

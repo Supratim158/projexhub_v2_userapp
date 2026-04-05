@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+import '../../common/app_style.dart';
 import '../../common/bg_controller.dart';
+import '../../common/reusable_text.dart';
 import 'signin_page.dart';
 
 class LandingPage extends StatefulWidget {
@@ -59,17 +62,28 @@ class _LandingPageState extends State<LandingPage>
               const SizedBox(height: 10),
 
               /// 🔹 App Logo
-              const Hero(
+               /// 🔹 App Logo
+              Hero(
                 tag: 'logo',
                 child: Material(
                   color: Colors.transparent,
-                  child: Text(
-                    "ProjexHub",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3,
+                  child: ReusableText(
+                    text: "ProjexHub",
+                    style: appStyle(
+                      40.sp,
+                      Colors.white,
+                      FontWeight.bold,
+                    ).copyWith(
+                      shadows: [
+                        Shadow(
+                          color: Colors.blueAccent.withOpacity(0.9),
+                          blurRadius: 12,
+                        ),
+                        Shadow(
+                          color: Colors.blueAccent.withOpacity(0.6),
+                          blurRadius: 25,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -78,11 +92,19 @@ class _LandingPageState extends State<LandingPage>
               const SizedBox(height: 10),
 
               /// 🔹 Subtitle
-              const Text(
-                "THE FUTURE OF PROJECTS",
-                style: TextStyle(
-                  color: Colors.white54,
-                  letterSpacing: 1.2,
+              ReusableText(
+                text: "Organize. Track. Showcase",
+                style: appStyle(
+                  15.sp,
+                  Colors.white,
+                  FontWeight.w600,
+                ).copyWith(
+                  shadows: [
+                    Shadow(
+                      color: Colors.blueAccent.withOpacity(0.6),
+                      blurRadius: 5,
+                    ),
+                  ],
                 ),
               ),
 
